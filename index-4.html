@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login</title>
+<style>
+  :root { --bg:#eef2f7; --card:#ffffff; --ink:#18212f; --muted:#5b6678; --line:#d9e0ea; --g:#ffffff; --fb:#1877f2; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#10151d; --card:#19212d; --ink:#eef2f7; --muted:#9aa6b8; --line:#2b3544; --g:#232d3b; }
+  }
+  * { box-sizing:border-box; }
+  html,body { height:100%; margin:0; }
+  body { font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink);
+         display:flex; align-items:center; justify-content:center; padding:20px; }
+  .card { width:100%; max-width:380px; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:28px 24px; }
+  h1 { font-size:1.4rem; margin:0 0 6px; }
+  p.sub { margin:0 0 22px; color:var(--muted); font-size:.95rem; }
+  button { width:100%; display:flex; align-items:center; justify-content:center; gap:10px; font:inherit; font-weight:600;
+           padding:13px 14px; border-radius:10px; cursor:pointer; margin-bottom:12px; }
+  button:focus-visible { outline:3px solid #6aa9ff; outline-offset:2px; }
+  button:disabled { opacity:.6; cursor:default; }
+  .google { background:var(--g); color:var(--ink); border:1px solid var(--line); }
+  .facebook { background:var(--fb); color:#fff; border:1px solid var(--fb); }
+  .logout { background:transparent; color:var(--ink); border:1px solid var(--line); margin:18px 0 0; }
+  svg { width:20px; height:20px; flex:none; }
+  #msg { min-height:1.2em; margin:6px 0 0; font-size:.9rem; color:#d93025; }
+  .profile { text-align:center; }
+  .profile img { width:84px; height:84px; border-radius:50%; object-fit:cover; background:var(--line); }
+  .profile h2 { margin:14px 0 4px; font-size:1.2rem; }
+  .profile p { margin:0; color:var(--muted); word-break:break-all; font-size:.92rem; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main class="card">
+
+  <section id="loginView">
+    <h1>Login karein</h1>
+    <p class="sub">Apne Google ya Facebook account se aage badhein.</p>
+
+    <button id="googleBtn" class="google">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+      Google se login
+    </button>
+
+    <button id="fbBtn" class="facebook">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M24 12a12 12 0 1 0-13.9 11.9v-8.4H7.1V12h3V9.4c0-3 1.8-4.7 4.5-4.7 1.3 0 2.7.2 2.7.2v3h-1.5c-1.5 0-2 .9-2 1.9V12h3.4l-.5 3.5h-2.9v8.4A12 12 0 0 0 24 12z"/></svg>
+      Facebook se login
+    </button>
+
+    <p id="msg" role="alert"></p>
+  </section>
+
+  <section id="profileView" class="profile" hidden>
+    <img id="photo" alt="Profile photo">
+    <h2 id="name"></h2>
+    <p id="email"></p>
+    <button id="logoutBtn" class="logout">Logout</button>
+  </section>
+
+</main>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signInWithPopup, signOut,
+           GoogleAuthProvider, FacebookAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  // 1) Firebase Console > Project settings > Your apps > Web app se config yahan paste karein
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    appId: "YOUR_APP_ID"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  const $ = (id) => document.getElementById(id);
+  const msg = $("msg");
+
+  const errors = {
+    "auth/popup-closed-by-user": "Login window band ho gayi. Dobara try karein.",
+    "auth/cancelled-popup-request": "Pehle wali login window abhi khuli hai.",
+    "auth/popup-blocked": "Browser ne popup block kiya. Popup allow karein.",
+    "auth/account-exists-with-different-credential": "Is email se doosre tareeke (Google/Facebook) se account pehle se bana hai. Usi se login karein.",
+    "auth/unauthorized-domain": "Ye domain Firebase mein authorized nahi hai. Authentication > Settings > Authorized domains mein add karein.",
+    "auth/operation-not-allowed": "Ye login method Firebase Console mein enable nahi hai."
+  };
+
+  async function login(provider) {
+    msg.textContent = "";
+    $("googleBtn").disabled = $("fbBtn").disabled = true;
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (e) {
+      msg.textContent = errors[e.code] || ("Login nahi ho paya: " + e.code);
+    } finally {
+      $("googleBtn").disabled = $("fbBtn").disabled = false;
+    }
+  }
+
+  $("googleBtn").addEventListener("click", () => login(new GoogleAuthProvider()));
+  $("fbBtn").addEventListener("click", () => {
+    const p = new FacebookAuthProvider();
+    p.addScope("email");
+    login(p);
+  });
+  $("logoutBtn").addEventListener("click", () => signOut(auth));
+
+  onAuthStateChanged(auth, (user) => {
+    $("loginView").hidden = !!user;
+    $("profileView").hidden = !user;
+    if (user) {
+      $("name").textContent = user.displayName || "User";
+      $("email").textContent = user.email || "";
+      $("photo").src = user.photoURL || "";
+    }
+  });
+</script>
+</body>
+</html>
